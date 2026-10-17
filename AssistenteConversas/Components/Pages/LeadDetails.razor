@@ -1,0 +1,75 @@
+@page "/leads/{Id:guid}"
+@rendermode InteractiveServer
+@using AssistenteConversas.Models
+@using AssistenteConversas.Services
+@inject ILeadService LeadService
+@inject NavigationManager Navigation
+
+<PageTitle>Detalhes do lead | Assistente de Conversas</PageTitle>
+<h1>Detalhes do lead</h1>
+<a class="btn btn-outline-success mb-3" href="/api/leads/@Id/export">Exportar este lead para CSV</a>
+@if (lead is null) { <p>Carregando...</p> }
+else
+{
+    <EditForm Model="lead" OnValidSubmit="Save">
+        <DataAnnotationsValidator />
+        <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">Nome</label><InputText class="form-control" @bind-Value="lead.Nome" /></div>
+            <div class="col-md-6"><label class="form-label">Empresa</label><InputText class="form-control" @bind-Value="lead.Empresa" /></div>
+            <div class="col-md-6"><label class="form-label">Cargo</label><InputText class="form-control" @bind-Value="lead.Cargo" /></div>
+            <div class="col-md-6"><label class="form-label">E-mail</label><InputText class="form-control" @bind-Value="lead.Email" /></div>
+            <div class="col-md-6"><label class="form-label">Temperatura</label><InputSelect class="form-select" @bind-Value="lead.Temperatura">@foreach (var item in LeadValues.Temperaturas) { <option value="@item">@item</option> }</InputSelect></div>
+            <div class="col-md-6"><label class="form-label">Status</label><InputSelect class="form-select" @bind-Value="lead.Status">@foreach (var item in LeadValues.Statuses) { <option value="@item">@item</option> }</InputSelect></div>
+            <div class="col-md-6"><label class="form-label">Próximo follow-up</label><InputDate class="form-control" @bind-Value="lead.ProximoFollowUp" /></div>
+            <div class="col-md-6"><label class="form-label">Próxima ação</label><InputText class="form-control" @bind-Value="lead.ProximaAcao" /></div>
+            <div class="col-12"><label class="form-label">Resumo</label><InputTextArea class="form-control" @bind-Value="lead.Resumo" /></div>
+            <div class="col-12"><label class="form-label">Observações</label><InputTextArea class="form-control" @bind-Value="lead.Observacoes" /></div>
+            <div class="col-12"><label class="form-label">Conversa original</label><textarea class="form-control" rows="8" @bind="lead.ConversaOriginal"></textarea></div>
+        </div>
+        <div class="d-flex gap-2 mt-3"><button class="btn btn-primary" type="submit">Salvar</button><button class="btn btn-outline-secondary" type="button" @onclick="Back">Voltar</button><button class="btn btn-outline-danger" type="button" @onclick="Delete">Excluir</button></div>
+    </EditForm>
+    @if (!string.IsNullOrEmpty(message)) { <div class="alert alert-info mt-3">@message</div> }
+
+    <h2 class="h5 mt-4">Histórico de interações</h2>
+    <div class="input-group mb-3">
+        <input class="form-control" placeholder="Ex.: Ligação feita, cliente pediu proposta" @bind="novaInteracao" />
+        <button class="btn btn-outline-primary" type="button" @onclick="RegistrarInteracao">Registrar</button>
+    </div>
+    @if (interacoes.Count == 0) { <p class="text-secondary">Nenhuma interação registrada.</p> }
+    else
+    {
+        <ul class="list-group">
+            @foreach (var item in interacoes)
+            {
+                <li class="list-group-item"><small class="text-secondary">@item.DataRegistro.ToLocalTime().ToString("g")</small><br />@item.Texto</li>
+            }
+        </ul>
+    }
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    private Lead? lead;
+    private string? message;
+    private string novaInteracao = string.Empty;
+    private IReadOnlyList<LeadInteracao> interacoes = [];
+    protected override async Task OnInitializedAsync()
+    {
+        lead = await LeadService.GetAsync(Id);
+        await CarregarInteracoes();
+    }
+    private async Task CarregarInteracoes() => interacoes = await LeadService.ListInteracoesAsync(Id);
+    private async Task RegistrarInteracao()
+    {
+        try
+        {
+            await LeadService.AddInteracaoAsync(Id, novaInteracao);
+            novaInteracao = string.Empty;
+            await CarregarInteracoes();
+        }
+        catch (ArgumentException ex) { message = ex.Message; }
+    }
+    private async Task Save() { if (lead is not null && await LeadService.UpdateAsync(lead)) message = "Lead salvo com sucesso."; }
+    private async Task Delete() { if (await LeadService.DeleteAsync(Id)) Navigation.NavigateTo("/leads"); }
+    private void Back() => Navigation.NavigateTo("/leads");
+}

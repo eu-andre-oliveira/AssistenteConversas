@@ -1,0 +1,15 @@
+# Build e IDE
+bin/
+obj/
+.vs/
+*.user
+*.suo
+
+# Dados locais: leads reais contêm dados pessoais e não devem ir ao repositório
+AssistenteConversas/data/*.db
+AssistenteConversas/data/*.db-shm
+AssistenteConversas/data/*.db-wal
+
+# Segredos: use `dotnet user-secrets` e variáveis de ambiente
+appsettings.*.local.json
+.env

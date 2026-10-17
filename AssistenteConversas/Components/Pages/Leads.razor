@@ -1,0 +1,39 @@
+@page "/leads"
+@rendermode InteractiveServer
+@using AssistenteConversas.Models
+@using AssistenteConversas.Services
+@inject ILeadService LeadService
+@inject NavigationManager Navigation
+
+<PageTitle>Leads | Assistente de Conversas</PageTitle>
+<h1>Leads</h1>
+<a class="btn btn-outline-success mb-3" href="/api/leads/export">Exportar todos para CSV</a>
+
+<div class="row g-2 mb-3">
+    <div class="col-md-3"><input class="form-control" placeholder="Pesquisar nome" @bind="name" /></div>
+    <div class="col-md-3"><input class="form-control" placeholder="Pesquisar empresa" @bind="company" /></div>
+    <div class="col-md-2"><select class="form-select" @bind="temperature"><option value="">Temperatura</option>@foreach (var item in LeadValues.Temperaturas) { <option value="@item">@item</option> }</select></div>
+    <div class="col-md-2"><select class="form-select" @bind="status"><option value="">Status</option>@foreach (var item in LeadValues.Statuses) { <option value="@item">@item</option> }</select></div>
+    <div class="col-md-2"><button class="btn btn-primary w-100" @onclick="Load">Pesquisar</button></div>
+</div>
+
+@if (!string.IsNullOrEmpty(message)) { <div class="alert alert-info">@message</div> }
+@if (leads.Count == 0) { <p class="text-secondary">Nenhum lead encontrado.</p> }
+else
+{
+    <div class="table-responsive"><table class="table table-hover align-middle">
+        <thead><tr><th>Nome</th><th>Empresa</th><th>Temperatura</th><th>Status</th><th>Próximo follow-up</th><th>Criado em</th><th></th></tr></thead>
+        <tbody>@foreach (var lead in leads)
+        { <tr><td>@lead.Nome</td><td>@lead.Empresa</td><td>@lead.Temperatura</td><td>@lead.Status</td><td class="@(IsAtrasado(lead) ? "text-danger fw-semibold" : "")">@(lead.ProximoFollowUp?.ToString("dd/MM/yyyy") ?? "—")</td><td>@lead.DataCriacao.ToLocalTime().ToString("g")</td><td><button class="btn btn-sm btn-outline-primary" @onclick="() => Open(lead.Id)">Abrir</button></td></tr> }</tbody>
+    </table></div>
+}
+
+@code {
+    private List<Lead> leads = [];
+    private string? name, company, temperature, status, message;
+    protected override async Task OnInitializedAsync() => await Load();
+    private async Task Load() { leads = (await LeadService.SearchAsync(name, company, temperature, status)).ToList(); message = null; }
+    private void Open(Guid id) => Navigation.NavigateTo($"/leads/{id}");
+    private static bool IsAtrasado(Lead lead) =>
+        lead.ProximoFollowUp is { } data && data < DateOnly.FromDateTime(DateTime.Now);
+}

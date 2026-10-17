@@ -1,0 +1,172 @@
+@page "/chat"
+@rendermode InteractiveServer
+@using AssistenteConversas.Models
+@using AssistenteConversas.Services
+@inject IChatAssistant Assistente
+@inject ILeadService LeadService
+@inject LeadChangeApplier Applier
+
+<PageTitle>Assistente de leads | Assistente de Conversas</PageTitle>
+
+<h1>Assistente de leads</h1>
+<p class="text-secondary">Converse para cadastrar, atualizar leads ou agendar follow-ups. Nada é salvo sem a sua confirmação.</p>
+
+<div class="border rounded p-3 mb-3" style="height: 420px; overflow-y: auto;">
+    @if (mensagens.Count == 0)
+    {
+        <p class="text-secondary mb-0">Ex.: "Cadastre a Ana, CTO da Acme, interessada em automação. Me lembra de falar com ela na sexta."</p>
+    }
+    @foreach (var item in mensagens)
+    {
+        <div class="mb-3 @(item.Papel == Papel.Usuario ? "text-end" : "")">
+            <div class="d-inline-block p-2 rounded text-start @Classe(item.Papel)" style="max-width: 80%; white-space: pre-wrap;">@item.Texto</div>
+            @if (item.Avisos.Count > 0)
+            {
+                <ul class="small text-warning-emphasis mt-1 mb-0 text-start">
+                    @foreach (var aviso in item.Avisos) { <li>@aviso</li> }
+                </ul>
+            }
+            @if (item.LeadId is Guid id)
+            {
+                <div class="small mt-1"><a href="leads/@id">Abrir lead</a></div>
+            }
+        </div>
+    }
+    @if (ocupado)
+    {
+        <div class="text-secondary small">Pensando...</div>
+    }
+</div>
+
+@if (pendente is { } acao)
+{
+    <div class="card border-warning mb-3">
+        <div class="card-body">
+            <h2 class="h6">
+                @(acao.Tipo == LeadActionType.Criar ? "Ação proposta: criar lead" : $"Ação proposta: atualizar lead {pendenteNomeLead}")
+            </h2>
+            <ul class="mb-2">
+                @foreach (var (campo, valor) in acao.Campos.GetChanges())
+                {
+                    <li><strong>@campo:</strong> @valor</li>
+                }
+                @if (acao.Interacao is not null)
+                {
+                    <li><strong>Registrar no histórico:</strong> @acao.Interacao</li>
+                }
+            </ul>
+            <div class="d-flex gap-2">
+                <button class="btn btn-success btn-sm" @onclick="Confirmar" disabled="@ocupado">Confirmar</button>
+                <button class="btn btn-outline-secondary btn-sm" @onclick="Descartar" disabled="@ocupado">Descartar</button>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="input-group">
+    <textarea class="form-control" rows="2" placeholder="Escreva para o assistente..."
+              @bind="entrada" @bind:event="oninput" disabled="@ocupado"></textarea>
+    <button class="btn btn-primary" @onclick="Enviar" disabled="@ocupado">Enviar</button>
+</div>
+
+@code {
+    private enum Papel { Usuario, Assistente, Sistema }
+
+    private sealed record ChatItem(Papel Papel, string Texto, IReadOnlyList<string> Avisos, Guid? LeadId = null);
+
+    private readonly List<ChatItem> mensagens = [];
+    private string entrada = string.Empty;
+    private bool ocupado;
+
+    private LeadAction? pendente;
+    private string? pendenteNomeLead;
+    private string textoPendente = string.Empty;
+
+    private async Task Enviar()
+    {
+        var texto = entrada.Trim();
+        if (string.IsNullOrEmpty(texto)) return;
+
+        var historico = mensagens
+            .Where(m => m.Papel != Papel.Sistema)
+            .TakeLast(10)
+            .Select(m => new ChatMessageItem(m.Papel == Papel.Usuario ? "user" : "assistant", m.Texto))
+            .ToList();
+
+        mensagens.Add(new ChatItem(Papel.Usuario, texto, []));
+        entrada = string.Empty;
+        pendente = null;
+        ocupado = true;
+        StateHasChanged();
+
+        try
+        {
+            var leads = (await LeadService.SearchAsync(null, null, null, null)).Take(50).ToList();
+            var turno = await Assistente.ProcessAsync(texto, historico, leads, DateOnly.FromDateTime(DateTime.Now));
+            mensagens.Add(new ChatItem(Papel.Assistente, turno.Resposta, turno.Avisos));
+
+            if (turno.Acao is { } acao)
+            {
+                pendente = acao;
+                textoPendente = texto;
+                pendenteNomeLead = acao.LeadId is Guid leadId ? leads.FirstOrDefault(l => l.Id == leadId)?.Nome : null;
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            mensagens.Add(new ChatItem(Papel.Sistema, ex.Message, []));
+        }
+        catch
+        {
+            mensagens.Add(new ChatItem(Papel.Sistema, "Não foi possível processar a mensagem. Tente novamente.", []));
+        }
+        finally
+        {
+            ocupado = false;
+        }
+    }
+
+    private async Task Confirmar()
+    {
+        if (pendente is not { } acao) return;
+        var texto = textoPendente;
+        pendente = null;
+        ocupado = true;
+
+        try
+        {
+            var id = await Applier.ApplyAsync(acao, texto);
+            var mensagem = acao.Tipo == LeadActionType.Criar ? "Lead criado." : "Lead atualizado.";
+            mensagens.Add(new ChatItem(Papel.Sistema, mensagem, [], id));
+        }
+        catch (ArgumentException ex)
+        {
+            mensagens.Add(new ChatItem(Papel.Sistema, ex.Message, []));
+        }
+        catch (InvalidOperationException ex)
+        {
+            mensagens.Add(new ChatItem(Papel.Sistema, ex.Message, []));
+        }
+        catch
+        {
+            mensagens.Add(new ChatItem(Papel.Sistema, "Não foi possível salvar a alteração.", []));
+        }
+        finally
+        {
+            ocupado = false;
+        }
+    }
+
+    private void Descartar()
+    {
+        pendente = null;
+        mensagens.Add(new ChatItem(Papel.Sistema, "Ação descartada.", []));
+    }
+
+    private static string Classe(Papel papel) => papel switch
+    {
+        Papel.Usuario => "bg-primary text-white",
+        Papel.Assistente => "bg-light border",
+        _ => "bg-warning-subtle border"
+    };
+}

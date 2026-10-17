@@ -1,0 +1,65 @@
+[
+  {
+    "nome": "Mariana Exemplo",
+    "empresa": "Ficticia Tecnologia",
+    "cargo": "Gerente de operações",
+    "email": "mariana@exemplo.com",
+    "telefone": "(11) 90000-0001",
+    "perfilLinkedIn": null,
+    "necessidade": "Automatizar respostas repetitivas no WhatsApp",
+    "produtoInteresse": "Automação de atendimento",
+    "nivelInteresse": "Alto",
+    "temperatura": "Quente",
+    "status": "Reunião agendada",
+    "prazoEstimado": "Primeiro trimestre",
+    "proximaAcao": "Confirmar a demonstração de quinta-feira",
+    "proximoFollowUp": "2026-10-21",
+    "resumo": "Lead interessada em reduzir o tempo gasto com perguntas repetidas. Pediu demonstração e suporte em português.",
+    "observacoes": "Orçamento limitado para o primeiro trimestre.",
+    "interacoes": [
+      "Primeiro contato pelo anúncio",
+      "Pediu demonstração para quinta-feira às 15h"
+    ]
+  },
+  {
+    "nome": "Carlos Teste",
+    "empresa": null,
+    "cargo": "Consultor autônomo",
+    "email": null,
+    "telefone": null,
+    "perfilLinkedIn": null,
+    "necessidade": null,
+    "produtoInteresse": null,
+    "nivelInteresse": "Baixo",
+    "temperatura": "Frio",
+    "status": "Novo",
+    "prazoEstimado": "Ano que vem",
+    "proximaAcao": "Retomar contato em janeiro",
+    "proximoFollowUp": "2027-01-15",
+    "resumo": "Sem previsão de contratação neste ano.",
+    "observacoes": null,
+    "interacoes": []
+  },
+  {
+    "nome": "Roberto Modelo",
+    "empresa": "Modelo Comércio Ltda.",
+    "cargo": "Diretor comercial",
+    "email": "roberto@exemplo.com",
+    "telefone": null,
+    "perfilLinkedIn": null,
+    "necessidade": "Organizar o funil de vendas",
+    "produtoInteresse": null,
+    "nivelInteresse": "Médio",
+    "temperatura": "Morno",
+    "status": "Proposta enviada",
+    "prazoEstimado": null,
+    "proximaAcao": "Verificar se a proposta foi lida",
+    "proximoFollowUp": "2026-10-18",
+    "resumo": "Proposta enviada após a primeira reunião. Aguardando retorno.",
+    "observacoes": "Decisor final é o sócio, ainda não contatado.",
+    "interacoes": [
+      "Reunião de descoberta realizada",
+      "Proposta enviada por e-mail"
+    ]
+  }
+]
