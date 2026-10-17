@@ -1,6 +1,7 @@
 using AssistenteConversas.Components;
 using AssistenteConversas.Data;
 using AssistenteConversas.Services;
+using AssistenteConversas.Services.Telegram;
 using AssistenteConversas.Models;
 using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
@@ -24,19 +25,27 @@ builder.Services.AddHttpClient<PoeChatClient>((serviceProvider, client) =>
     client.Timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
 });
 var usaPoe = string.Equals(builder.Configuration["AI:Provider"], "poe", StringComparison.OrdinalIgnoreCase);
-builder.Services.AddScoped<MockConversationAnalyzer>();
-builder.Services.AddScoped<PoeConversationAnalyzer>();
-builder.Services.AddScoped<IConversationAnalyzer>(serviceProvider => usaPoe
-    ? serviceProvider.GetRequiredService<PoeConversationAnalyzer>()
-    : serviceProvider.GetRequiredService<MockConversationAnalyzer>());
 builder.Services.AddScoped<MockChatAssistant>();
 builder.Services.AddScoped<PoeChatAssistant>();
 builder.Services.AddScoped<IChatAssistant>(serviceProvider => usaPoe
     ? serviceProvider.GetRequiredService<PoeChatAssistant>()
     : serviceProvider.GetRequiredService<MockChatAssistant>());
 builder.Services.AddScoped<LeadChangeApplier>();
+builder.Services.AddSingleton<LeadMatcher>();
 builder.Services.AddScoped<ILeadService, LeadService>();
 builder.Services.AddSingleton<ICsvExportService, CsvExportService>();
+
+// Telegram: o token vem do user secrets (Telegram:BotToken); a integração só roda se Telegram:Enabled for true.
+builder.Services.Configure<TelegramOptions>(builder.Configuration.GetSection("Telegram"));
+builder.Services.AddHttpClient<TelegramApi>((serviceProvider, client) =>
+{
+    var token = serviceProvider.GetRequiredService<IOptions<TelegramOptions>>().Value.BotToken ?? string.Empty;
+    client.BaseAddress = new Uri($"https://api.telegram.org/bot{token}/");
+    client.Timeout = System.Threading.Timeout.InfiniteTimeSpan;
+});
+builder.Services.AddSingleton<TelegramSessionStore>();
+builder.Services.AddScoped<TelegramBotHandler>();
+builder.Services.AddHostedService<TelegramPollingService>();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()

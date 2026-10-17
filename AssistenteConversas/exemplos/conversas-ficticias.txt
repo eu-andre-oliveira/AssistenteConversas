@@ -1,23 +1,24 @@
-Conversas fictícias para testar a aplicação.
+Mensagens fictícias para testar o assistente em /chat.
 Todos os nomes, empresas, e-mails e telefones são inventados.
 
-=== Conversa 1: primeiro contato (para /analisar) ===
+=== Teste 1: cadastro de um lead novo ===
 
-Mariana Exemplo (Ficticia Tecnologia): Oi! Vi o anúncio da automação de atendimento.
-Eu sou a Mariana, gerente de operações da Ficticia Tecnologia.
-Hoje perdemos muito tempo respondendo as mesmas perguntas no WhatsApp.
-Vocês têm algo para isso? Meu e-mail é mariana@exemplo.com.
-Podemos falar na próxima semana, de preferência numa quinta à tarde.
-Nosso orçamento para o primeiro trimestre é limitado, então o prazo importa.
+Usuário: Cadastre a Mariana Exemplo, gerente de operações da Ficticia Tecnologia.
+Ela quer automatizar as perguntas repetidas no WhatsApp. Meu e-mail para contato é mariana@exemplo.com.
+Usuário: A temperatura dela é Quente e o próximo follow-up é na sexta.
 
-=== Conversa 2: atualização de contato (para /chat, após cadastrar a Mariana) ===
+=== Teste 2: atualização de um lead existente ===
 
-Usuário: A Mariana me respondeu hoje. Ela quer uma demonstração na quinta-feira às 15h.
-Usuário: Atualize o status para Reunião agendada e me lembre de confirmar a reunião na quarta.
-Usuário: Anote no histórico que ela pediu que a proposta inclua suporte em português.
+Usuário: A Mariana Exemplo me respondeu hoje. Ela quer uma demonstração na quinta-feira às 15h.
+Usuário: Atualize o status dela para Reunião agendada e registre no histórico que ela pediu suporte em português.
 
-=== Conversa 3: lead de baixa prioridade (para /chat, cadastro novo) ===
+=== Teste 3: lead de baixa prioridade, com follow-up em data fixa ===
 
 Usuário: Cadastre o Carlos Teste, consultor autônomo, sem empresa definida.
-Usuário: Ele disse que só pensa em contratar no ano que vem. Coloque a temperatura como Frio
-Usuário: e o follow-up para 2027-01-15.
+Usuário: Ele só pensa em contratar no ano que vem. Temperatura Frio e follow-up em 15/01/2027.
+
+=== Teste 4: informação em várias mensagens ===
+
+Usuário: Quero cadastrar um lead novo. O nome dele é Fernando Teste.
+Usuário: Empresa Teste Ltda, ele é diretor comercial.
+Usuário: Não tenho e-mail nem telefone agora. Pode montar o cadastro.

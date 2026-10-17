@@ -1,21 +1,26 @@
 # Assistente de Conversas
 
-Aplicação local em **ASP.NET Core 10 + Blazor** para transformar conversas comerciais coladas manualmente em leads, mantendo atualizações e follow-ups por meio de um assistente de chat.
+Aplicação local em **ASP.NET Core 10 + Blazor** para cadastrar, atualizar e acompanhar leads por meio de um assistente de chat.
 
 A IA sugere; o usuário confirma. Nada é salvo sem revisão.
 
 ## Funcionalidades
 
-- **Analisar conversa** (`/analisar`): cola um texto, a IA extrai os dados do lead em campos editáveis e você salva.
-- **Assistente de leads** (`/chat`): conversa em linguagem natural para cadastrar leads, atualizar campos, agendar follow-ups e registrar interações. Cada ação aparece como proposta, com os campos que vão mudar, e só é gravada após **Confirmar**.
+- **Assistente de leads** (`/chat`): conversa em linguagem natural para:
+  - cadastrar leads novos, com alerta quando já existe um lead parecido;
+  - atualizar campos de um lead existente, localizado por nome ou empresa, mesmo com erros de digitação;
+  - agendar follow-ups, aceitando datas como "amanhã", "sexta" ou "em 3 dias", e sugerir uma data pelo status do lead;
+  - registrar interações no histórico do lead.
+
+  O assistente faz perguntas quando falta alguma informação ou quando há mais de um lead possível. Cada ação aparece como proposta, com os campos que vão mudar, e só é gravada após **Confirmar**.
 - **Leads** (`/leads`): busca, lista com o próximo follow-up (em vermelho quando está atrasado), detalhes editáveis e histórico de interações.
 - **Exportação** para CSV, de todos os leads ou de um lead.
 
 ## Privacidade
 
-- A entrada é somente o texto que você cola ou digita. A aplicação não acessa o LinkedIn, não faz scraping e não envia mensagens.
+- A entrada é somente o texto que você digita ou cola no chat. A aplicação não acessa o LinkedIn, não faz scraping e não envia mensagens.
 - Os dados ficam em um banco SQLite local (`AssistenteConversas/data/leads.db`), que não é versionado.
-- O texto colado é enviado à API configurada (Poe) apenas para análise. Use dados fictícios ou autorizados ao testar.
+- O texto da conversa é enviado à API configurada (Poe) para gerar as respostas. Use dados fictícios ou autorizados ao testar.
 
 ## Tecnologias
 
@@ -37,7 +42,7 @@ Abra o endereço exibido no terminal. Em `Development`, o banco é criado automa
 
 ### Configurar a chave de IA
 
-Por padrão, `appsettings.json` usa o provedor `poe`. Sem chave, a análise e o chat não funcionam. Para guardar a chave fora do código, use o *user secrets*:
+Por padrão, `appsettings.json` usa o provedor `poe`. Sem chave, o assistente não responde. Para guardar a chave fora do código, use o *user secrets*:
 
 ```bash
 cd AssistenteConversas
@@ -68,30 +73,43 @@ Em `AssistenteConversas/appsettings.json`, na seção `AI`:
 | `Temperature` | Temperatura de geração (padrão baixo, para respostas estáveis) |
 | `MaxTokens` | Limite de tokens por resposta |
 
+## Rotas
+
+| Rota | Tela |
+|---|---|
+| `/` | Início |
+| `/chat` | Assistente de leads |
+| `/leads` | Lista de leads (com filtros) |
+| `/leads/{id}` | Detalhes, edição e histórico de interações de um lead |
+| `/api/leads/export` | CSV com todos os leads |
+| `/api/leads/{id}/export` | CSV de um lead |
+
 ## Dados de exemplo
 
 A pasta `AssistenteConversas/exemplos/` tem dados totalmente fictícios:
 
-- `conversas-ficticias.txt`: conversas para colar em `/analisar` ou conversar no `/chat`.
+- `conversas-ficticias.txt`: mensagens para testar o assistente em `/chat`, incluindo um cadastro, uma atualização e um lead novo.
 - `leads-ficticios.json`: leads de exemplo com os mesmos campos do modelo `Lead`, para referência. Não é importado automaticamente; use-o para preencher manualmente ou como base para um script de carga.
 
 ## Como a IA é usada (resumo técnico)
 
-1. **Análise de conversa:** um prompt com contrato JSON fixo pede os campos do lead. Campos ausentes devem vir como `null`.
-2. **Assistente de chat:** o modelo recebe a data de hoje e um resumo dos leads cadastrados, e devolve uma resposta e, opcionalmente, uma ação proposta (`criar`, `atualizar` ou `nenhuma`).
-3. **Validação no servidor:** temperatura e status são aceitos somente dentro de listas fechadas; datas precisam estar em `aaaa-mm-dd`; um lead só pode ser atualizado se o id existir na lista enviada ao modelo; avisos são mostrados ao usuário quando algo é descartado.
-4. **Confirmação:** somente `LeadChangeApplier` grava alterações, e só é chamado quando o usuário clica em **Confirmar**.
+1. **Protocolo de busca:** o modelo não recebe a lista de leads. Para localizar um lead, ele pede uma busca com nome e empresa. O servidor responde com os candidatos mais parecidos, com tolerância a acento, maiúsculas e pequenos erros de digitação. A busca faz até 3 chamadas por mensagem.
+2. **Rascunho da intenção:** o que já foi entendido (tipo da ação, lead selecionado, campos e interação) fica guardado entre mensagens. Assim, o usuário pode responder às perguntas aos poucos.
+3. **Proposta:** o modelo marca `pronto` quando tem tudo para agir. Só então o servidor monta a proposta. Enquanto isso, nada é criado.
+4. **Validação no servidor:** temperatura e status só aceitam valores de listas fechadas; datas relativas são calculadas no código; um lead só pode ser atualizado se o id veio de uma busca nesta conversa; antes de criar, o sistema alerta sobre leads parecidos.
+5. **Sugestão de follow-up:** quando a interação ou o status muda e o lead não tem um follow-up futuro, o sistema sugere uma data pelo status (`Services/FollowUpPolicy.cs`). A sugestão vem com um aviso explicando o motivo.
+6. **Confirmação:** somente `LeadChangeApplier` grava alterações, e só é chamado quando o usuário clica em **Confirmar**.
 
 ## Estrutura
 
 ```
 AssistenteConversas/
-├── Components/Pages/     Páginas Blazor (Analisar, Chat, Leads, Detalhes, Home)
+├── Components/Pages/     Páginas Blazor (Chat, Leads, Detalhes, Home)
 ├── Data/                 DbContext do EF Core
 ├── Migrations/           Migrações do banco
-├── Models/               Lead, LeadInteracao, propostas do assistente
-├── Prompts/              Prompts enviados ao modelo
-├── Services/             Serviços de IA, leads, aplicação de ações e CSV
+├── Models/               Lead, LeadInteracao, rascunho e propostas do assistente
+├── Prompts/              Prompt do assistente
+├── Services/             Cliente Poe, assistente, busca, datas, aplicação de ações e CSV
 └── exemplos/             Dados fictícios
 ```
 

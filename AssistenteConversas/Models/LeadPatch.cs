@@ -23,6 +23,27 @@ public sealed class LeadPatch
 
     public bool IsEmpty => GetChanges().Count == 0;
 
+    // Retorna uma cópia em que os valores preenchidos em "outro" substituem os atuais.
+    public LeadPatch Mesclar(LeadPatch outro) => new()
+    {
+        Nome = outro.Nome ?? Nome,
+        Empresa = outro.Empresa ?? Empresa,
+        Cargo = outro.Cargo ?? Cargo,
+        Email = outro.Email ?? Email,
+        Telefone = outro.Telefone ?? Telefone,
+        PerfilLinkedIn = outro.PerfilLinkedIn ?? PerfilLinkedIn,
+        Necessidade = outro.Necessidade ?? Necessidade,
+        ProdutoInteresse = outro.ProdutoInteresse ?? ProdutoInteresse,
+        NivelInteresse = outro.NivelInteresse ?? NivelInteresse,
+        Temperatura = outro.Temperatura ?? Temperatura,
+        Status = outro.Status ?? Status,
+        PrazoEstimado = outro.PrazoEstimado ?? PrazoEstimado,
+        ProximaAcao = outro.ProximaAcao ?? ProximaAcao,
+        ProximoFollowUp = outro.ProximoFollowUp ?? ProximoFollowUp,
+        Resumo = outro.Resumo ?? Resumo,
+        Observacoes = outro.Observacoes ?? Observacoes,
+    };
+
     // Lista (campo, valor) apenas dos campos preenchidos. Usada na tela de confirmação.
     public IReadOnlyList<(string Campo, string Valor)> GetChanges()
     {

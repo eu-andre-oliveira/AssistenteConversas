@@ -5,6 +5,7 @@
 @inject IChatAssistant Assistente
 @inject ILeadService LeadService
 @inject LeadChangeApplier Applier
+@inject LeadMatcher Matcher
 
 <PageTitle>Assistente de leads | Assistente de Conversas</PageTitle>
 
@@ -43,7 +44,7 @@
     <div class="card border-warning mb-3">
         <div class="card-body">
             <h2 class="h6">
-                @(acao.Tipo == LeadActionType.Criar ? "Ação proposta: criar lead" : $"Ação proposta: atualizar lead {pendenteNomeLead}")
+                @(acao.Tipo == LeadActionType.Criar ? "Ação proposta: criar lead" : $"Ação proposta: atualizar lead {rascunho.LeadNome}")
             </h2>
             <ul class="mb-2">
                 @foreach (var (campo, valor) in acao.Campos.GetChanges())
@@ -59,6 +60,16 @@
                 <button class="btn btn-success btn-sm" @onclick="Confirmar" disabled="@ocupado">Confirmar</button>
                 <button class="btn btn-outline-secondary btn-sm" @onclick="Descartar" disabled="@ocupado">Descartar</button>
             </div>
+        </div>
+    </div>
+}
+else if (!rascunho.IsEmpty)
+{
+    <div class="card border-secondary mb-3">
+        <div class="card-body">
+            <h2 class="h6">Em andamento</h2>
+            <p class="small mb-2" style="white-space: pre-wrap;">@rascunho.Descrever()</p>
+            <button class="btn btn-outline-secondary btn-sm" @onclick="CancelarRascunho" disabled="@ocupado">Cancelar</button>
         </div>
     </div>
 }
@@ -78,9 +89,9 @@
     private string entrada = string.Empty;
     private bool ocupado;
 
+    // Estado do diálogo: o rascunho persiste entre mensagens; a proposta só existe quando o assistente diz que está pronta.
+    private LeadDraft rascunho = new();
     private LeadAction? pendente;
-    private string? pendenteNomeLead;
-    private string textoPendente = string.Empty;
 
     private async Task Enviar()
     {
@@ -101,16 +112,10 @@
 
         try
         {
-            var leads = (await LeadService.SearchAsync(null, null, null, null)).Take(50).ToList();
-            var turno = await Assistente.ProcessAsync(texto, historico, leads, DateOnly.FromDateTime(DateTime.Now));
+            var turno = await Assistente.ProcessAsync(texto, historico, BuscarLeads, DateOnly.FromDateTime(DateTime.Now), rascunho);
             mensagens.Add(new ChatItem(Papel.Assistente, turno.Resposta, turno.Avisos));
-
-            if (turno.Acao is { } acao)
-            {
-                pendente = acao;
-                textoPendente = texto;
-                pendenteNomeLead = acao.LeadId is Guid leadId ? leads.FirstOrDefault(l => l.Id == leadId)?.Nome : null;
-            }
+            rascunho = turno.Rascunho;
+            pendente = turno.Acao;
         }
         catch (InvalidOperationException ex)
         {
@@ -129,15 +134,18 @@
     private async Task Confirmar()
     {
         if (pendente is not { } acao) return;
-        var texto = textoPendente;
+
+        // A origem do cadastro é o que o usuário disse nesta conversa.
+        var origem = string.Join("\n", mensagens.Where(m => m.Papel == Papel.Usuario).Select(m => m.Texto));
         pendente = null;
         ocupado = true;
 
         try
         {
-            var id = await Applier.ApplyAsync(acao, texto);
+            var id = await Applier.ApplyAsync(acao, origem);
             var mensagem = acao.Tipo == LeadActionType.Criar ? "Lead criado." : "Lead atualizado.";
             mensagens.Add(new ChatItem(Papel.Sistema, mensagem, [], id));
+            rascunho = new LeadDraft();
         }
         catch (ArgumentException ex)
         {
@@ -160,8 +168,18 @@
     private void Descartar()
     {
         pendente = null;
+        rascunho = new LeadDraft();
         mensagens.Add(new ChatItem(Papel.Sistema, "Ação descartada.", []));
     }
+
+    private void CancelarRascunho()
+    {
+        rascunho = new LeadDraft();
+        mensagens.Add(new ChatItem(Papel.Sistema, "Rascunho cancelado.", []));
+    }
+
+    private async Task<IReadOnlyList<LeadCandidate>> BuscarLeads(LeadSearchCriteria criterio) =>
+        Matcher.Buscar(await LeadService.SearchAsync(null, null, null, null), criterio);
 
     private static string Classe(Papel papel) => papel switch
     {

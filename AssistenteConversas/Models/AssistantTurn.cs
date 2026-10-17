@@ -1,7 +1,8 @@
 namespace AssistenteConversas.Models;
 
 // Resposta do assistente já validada pelo servidor.
-public sealed record AssistantTurn(string Resposta, LeadAction? Acao, IReadOnlyList<string> Avisos);
+// Acao só vem preenchida quando a proposta está completa; Rascunho é o estado a guardar para a próxima mensagem.
+public sealed record AssistantTurn(string Resposta, LeadAction? Acao, IReadOnlyList<string> Avisos, LeadDraft Rascunho);
 
 // Ação proposta pelo assistente. Nunca é aplicada sem confirmação do usuário.
 public sealed record LeadAction(LeadActionType Tipo, Guid? LeadId, LeadPatch Campos, string? Interacao);
